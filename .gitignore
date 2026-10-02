@@ -1,0 +1,11 @@
+# Secrets
+.env
+
+# Generated data (CSV history, SQLite database, monthly archives)
+data/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

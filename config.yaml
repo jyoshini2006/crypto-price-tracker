@@ -1,0 +1,101 @@
+# ---------------------------------------------------------------------------
+# Cryptocurrency Price Tracker - configuration
+#
+# Everything the pipeline needs lives here: URLs, thresholds, paths, secrets
+# references. Nothing is hardcoded in the Python modules.
+#
+# Values may reference environment variables with ${VAR} or ${VAR:-default}
+# syntax; real secrets belong in .env (see .env.example), never in this file.
+# Relative paths are resolved against the crypto_tracker/ directory.
+# ---------------------------------------------------------------------------
+
+scraper:
+  # CoinMarketCap landing page lists the top coins in a lazily rendered table.
+  url: "https://coinmarketcap.com/"
+  top_n: 10
+  headless: true
+  window_size: "1920,1080"
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+  block_images: true            # skip image downloads: much faster page loads
+  page_load_timeout: 45
+  element_timeout: 25           # WebDriverWait budget for the table rows
+  scroll_pause: 1.5             # seconds to let lazy rows settle after scrolling
+  retries: 3                    # attempts before the API fallback is used
+  backoff_base: 2.0             # exponential backoff: 2s, 4s, 8s (+ jitter)
+  prefer_embedded_json: true    # parse __NEXT_DATA__ before touching the DOM
+  # CSS selectors are kept here on purpose: CoinMarketCap reshuffles its markup,
+  # so a broken selector should be a config edit, not a code change.
+  selectors:
+    rows:
+      - "table.cmc-table tbody tr"
+      - "table tbody tr"
+      - "[data-testid='top-assets'] tbody tr"
+    name: "p[class*='coin-item-name'], .cmc-table__cell--sort-by__name a, a[href^='/currencies/']"
+    symbol: "span[class*='coin-symbol'], [data-testid='coin-symbol'], p[class*='coin-item-symbol']"
+    price: "[data-testid='price'], td[class*='price']"
+    change_24h: "[data-testid='percent-change-24h'], td[class*='percent-change']"
+    market_cap: "[data-testid='market-cap'], td[class*='market-cap']"
+
+fallback:
+  # Tried in order when Selenium fails; the first provider that answers wins.
+  providers: ["coingecko", "coinmarketcap"]
+  coingecko_base_url: "https://api.coingecko.com/api/v3"
+  coinmarketcap_base_url: "https://pro-api.coinmarketcap.com/v1"
+  vs_currency: "usd"
+  api_key_env: "CMC_API_KEY"    # only needed for the CoinMarketCap provider
+  timeout: 20
+  retries: 2
+  backoff_base: 2.0
+
+validation:
+  # "exactly top_n rows, no duplicates, price > 0" from the spec. API providers
+  # occasionally return a shorter list, so the strict count only applies to the
+  # scraper and the sample source.
+  enforce_exact_rows: true
+  min_rows: 5
+
+storage:
+  csv_path: "data/prices.csv"
+  archive_dir: "data/archive"
+  sqlite_path: "data/crypto.db"
+  rotate_monthly: true
+
+alerts:
+  enabled: true
+  dry_run: true                 # true -> alerts are logged, not sent anywhere
+  price_thresholds:             # alert when a coin closes above the level
+    BTC: 100000
+    ETH: 5000
+  top_movers: 3                 # top 3 gainers and top 3 losers by 24h change
+  spike_pct: 5.0                # alert when the move vs. the previous run exceeds %
+  channels:
+    telegram:
+      enabled: false
+      bot_token_env: "TELEGRAM_BOT_TOKEN"
+      chat_id_env: "TELEGRAM_CHAT_ID"
+    email:
+      enabled: false
+      smtp_host: "smtp.gmail.com"
+      smtp_port: 587
+      use_tls: true
+      username_env: "SMTP_USERNAME"
+      password_env: "SMTP_PASSWORD"
+      from_env: "SMTP_FROM"
+      to_env: "SMTP_TO"
+
+scheduler:
+  interval_minutes: 15          # CoinMarketCap asks for gentle scraping
+  run_immediately: true
+
+logging:
+  dir: "logs"
+  file: "crypto_tracker.log"
+  alert_file: "alerts.log"
+  level: "INFO"
+  max_bytes: 1048576
+  backup_count: 3
+
+dashboard:
+  refresh_seconds: 30
+  default_coin: "BTC"
+  history_hours: 168

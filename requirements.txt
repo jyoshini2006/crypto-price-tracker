@@ -1,0 +1,22 @@
+# Cryptocurrency Price Tracker dependencies (kept separate from the repo-root
+# requirements.txt so the two projects never fight over versions).
+
+# Scraping
+selenium==4.50.0
+webdriver-manager==4.1.2
+
+# Fallback API + alert delivery
+requests==2.34.2
+
+# Config, scheduling, storage and analysis
+PyYAML==6.0.3
+python-dotenv==1.2.4
+schedule==1.2.2
+pandas==3.0.6
+numpy==2.5.3
+
+# Dashboard
+streamlit==1.64.0
+
+# Tests
+pytest==9.1.1
